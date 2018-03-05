@@ -1,0 +1,39 @@
+#!/bin/bash
+
+# Your PEM file path goes here:
+pem_path=''
+name_search=$1
+function getinstances {
+        aws ec2 describe-instances  --filters "Name=tag:Name,Values=*$1*" "Name=instance-state-name,Values=running" --query 'Reservations[*].Instances[*].[PublicIpAddress, Tags[?Key==`Name`].Value | [0]]' --output=text
+}
+
+instances=$(getinstances $name_search)
+index=0
+print_node=''
+ips=()
+test=()
+for node in $(echo $instances);do
+	if (( $index % 2 != 0))
+	then
+		ips[$[${#ips[@]}+1]]=$print_node
+		echo [${#ips[@]+1}] $print_node $node
+		print_node=''
+	else
+		print_node=$node	
+        fi
+	let index=${index}+1
+done
+
+echo ""
+
+echo "Which node do you want to connect to?"
+read nodeid
+
+if [ -n "$nodeid" ] && [ "$nodeid" -lt $[${#ips[@]}+1] ] && [ "$nodeid" -gt 0 ]; then
+	echo "Connecting to ${ips[nodeid]}..."
+	ssh -i $pem_path kmh@${ips[nodeid]}
+else
+	echo "You didnt choose a valid node... disappointing :("
+fi
+
+
